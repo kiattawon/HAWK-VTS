@@ -2671,6 +2671,19 @@ body *:not(.logo):not(kbd){text-transform:none!important;letter-spacing:normal!i
 kbd{font-family:'JetBrains Mono',monospace}
 #sysl{text-transform:lowercase!important}
 #sysl::first-letter{text-transform:uppercase!important}
+
+/* V46.1 · fleet rows on two lines, out-of-area chip, grey offline */
+.vc .nm2{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.vc .nm2 b{font-weight:600;font-size:12.5px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc .nm2 small{font-size:10.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc{padding:7px 16px}
+.c-offline{color:var(--tx2);border-color:var(--hr3)}
+.tag.c-offline{background:var(--sf3)}
+.aorchip{left:50%;transform:translateX(-50%);top:58px;display:flex;align-items:center;gap:8px;padding:6px 12px;
+ cursor:pointer;font:500 11.5px/1.2 var(--fu);color:var(--tx);border-radius:999px}
+.aorchip i{width:7px;height:7px;border-radius:50%;background:var(--am);flex:none}
+.aorchip span{color:var(--tx3);font-size:10.5px}
+.aorchip:hover{border-color:var(--am)}
 </style>
 </head>
 <body>
@@ -2768,7 +2781,7 @@ kbd{font-family:'JetBrains Mono',monospace}
         <div class="r"><i id="lg1" style="background:#38C6F4"></i>Moving</div>
         <div class="r"><i id="lg2" style="background:#2BD98A"></i>Idle</div>
         <div class="r"><i id="lg3" style="background:#F5A82C"></i>No update &gt; 30 min</div>
-        <div class="r"><i id="lg4" style="background:#FF4D61"></i>Offline</div>
+        <div class="r"><i id="lg4" style="background:#6E7A8E"></i>Offline</div>
       </div>
       <div class="mbox mupd"><span class="d"></span><span id="mupd">awaiting data</span></div>
       <div class="mbox frbar" id="frbar">
@@ -3362,9 +3375,12 @@ kbd{font-family:'JetBrains Mono',monospace}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $=i=>document.getElementById(i);
-const SC={moving:'#38C6F4',idle:'#2BD98A',stale:'#F5A82C',offline:'#FF4D61'};
-const SCL={moving:'#0793C8',idle:'#0CA365',stale:'#D77E06',offline:'#DC2F45'}; /* light-theme marker set */
+const SC={moving:'#38C6F4',idle:'#2BD98A',stale:'#F5A82C',offline:'#6E7A8E'};
+const SCL={moving:'#0793C8',idle:'#0CA365',stale:'#D77E06',offline:'#8A95A8'}; /* light-theme marker set */
 const mc=k=>(document.documentElement.dataset.theme==='light'?SCL:SC)[k];
+/* Offline is grey because a phone switched off after a shift is normal. Red is
+   kept for outcomes that are genuinely bad (cancelled, needs attention, late). */
+const mcBad=()=>document.documentElement.dataset.theme==='light'?'#DC2F45':'#FF4D61';
 const S={url:'',auth:'',demo:false,devices:[],pos:{},sel:null,rangeH:6,timer:null,
  route:null,rlayer:null,fitted:false,q:'',filt:'all',sort:'priority',rfit:false,hist:{},prev:{},events:[],lastSpark:0,
  ghUrl:(function(){try{return localStorage.getItem('hawk_gh_v8')||'http://10.184.43.24:8988';}catch(e){return 'http://10.184.43.24:8988';}})(),
@@ -3474,7 +3490,7 @@ const KPI=[
  {k:'online', l:'Online',        s:'reporting now',    c:'var(--cy)'},
  {k:'moving', l:'Moving',        s:'speed > 5 km/h',   c:'var(--gn)'},
  {k:'stale',  l:'No update',     s:'gap > 30 min',     c:'var(--am)'},
- {k:'offline',l:'Offline',       s:'no signal',        c:'var(--rd)'}
+ {k:'offline',l:'Offline',       s:'no signal',        c:'var(--tx3)'}
 ];
 /* online/moving/stale/offline map onto the fleet-list filter; 'online' isn't
    one of the CHIPS values, it's a synthetic filter meaning "any status except
@@ -3601,7 +3617,7 @@ function renderFeed(){
  $('feed').innerHTML=trips.map(t=>{
   const pr=tripProgress(t);
   const st=t.status||'in_transit';
-  const col=st==='delivered'?mc('idle'):st==='cancelled'?mc('offline'):mc('moving');
+  const col=st==='delivered'?mc('idle'):st==='cancelled'?mcBad():mc('moving');
   const pct=pr?Math.round(pr.pct):0;
   const site=t.destination.name||'—';
   const from=(t.origin&&t.origin.name)||'—';
@@ -3672,7 +3688,8 @@ function render(){
  safe('events',()=>{deriveEvents();renderFeed();});
  safe('trip-kpis',renderTripKPIs);
  $('f-sync').textContent=new Date().toLocaleTimeString('en-GB');
- $('mupd').textContent=Object.keys(S.pos).length+' positions · '+new Date().toLocaleTimeString('en-GB');}
+ $('mupd').textContent=Object.keys(S.pos).length+' positions · '+new Date().toLocaleTimeString('en-GB');
+ safe('aor-chip',renderAorChip);}
 
 function renderOverview(cnt){
  $('ovn').textContent=cnt.total+' units';
@@ -3706,7 +3723,7 @@ function renderTripsDonut(){
   if(t.status==='cancelled'){c.cancelled++;return;}
   if(t.eta&&new Date(t.eta)<now)c.overdue++;else c.running++;});
  const mix=[['running',c.running,mc('moving')],['overdue',c.overdue,mc('stale')],
-   ['arrived',c.arrived,mc('idle')],['cancelled',c.cancelled,mc('offline')]];
+   ['arrived',c.arrived,mc('idle')],['cancelled',c.cancelled,mcBad()]];
  const tot=trips.length;
  const d=window.devicePixelRatio||1,w=92;
  cv.width=Math.round(w*d);cv.height=Math.round(w*d);
@@ -3779,6 +3796,9 @@ const GRP_ORDER=['moving','idle','stale','offline'];
    far, and left open it pushes everything actionable off the screen — the
    header still shows its count, so nothing is hidden, just folded. */
 const grpOpen={moving:true,idle:true,stale:true,offline:false};
+/* "JERWEN TIANCHON — ZAF9346" → driver on the first line, plate on the second */
+const nmMain=n=>String(n||'').split(/\s+[\u2014\u2013-]\s+/)[0].trim()||String(n||'');
+const nmSub=n=>{const a=String(n||'').split(/\s+[\u2014\u2013-]\s+/);return a.length>1?a.slice(1).join(' · ').trim():'';};
 function vcHTML(d){
  const p=S.pos[d.id],st=statOf(d,p),at=p&&p.attributes||{};
  /* single-line row — packs status/name/update/speed into one row so a long
@@ -3792,8 +3812,7 @@ function vcHTML(d){
  if(at.batteryLevel)tipBits.push(Math.round(at.batteryLevel)+'% batt');
  return `<div class="vc ${S.sel===d.id?'on':''}" data-id="${d.id}" title="${esc(d.name)} · ${esc(tipBits.join(' · '))}">
   <span class="tag c-${st}">${st==='stale'?'no update':st}</span>
-  <span class="nm">${esc(d.name)}</span>
-  <span class="upd">${d.lastUpdate?ago(d.lastUpdate):'never'}</span>
+  <span class="nm2"><b>${esc(nmMain(d.name))}</b><small>${nmSub(d.name)?esc(nmSub(d.name))+' · ':''}${d.lastUpdate?ago(d.lastUpdate):'never'}</small></span>
   <span class="sp num" style="color:${mc(st)}">${p?Math.round(kmh(p)):'–'}<u>km/h</u></span></div>`;}
 function renderList(){
  const V=sortVisible(visible());
@@ -3876,13 +3895,40 @@ function select(id){
    minimum zoom, and the Live map came back showing the entire planet tiled
    side by side. Size first, fit second — and if the container still has no
    width (mid-layout, or the page is hidden), wait for the next frame. */
+/* Service area: Mindanao (T7 & T8). One unit reporting from the wrong side of
+   the world — a GPS glitch, a phone on a test bench abroad, a 0,0 fix — used to
+   drag the fleet view out to the whole planet and pile every real vehicle into
+   one dot. The view now frames only units inside the area; the rest are named
+   in a chip on the map so they are not hidden, just not allowed to zoom it out. */
+const AOR=L.latLngBounds([[4.0,118.5],[11.2,127.6]]);
+const inAOR=p=>p&&isFinite(p.latitude)&&isFinite(p.longitude)&&AOR.contains([p.latitude,p.longitude]);
+function aorOutliers(){
+ return Object.values(S.pos).filter(p=>p&&!inAOR(p)).map(p=>{
+  const d=S.devices.find(v=>v.id===p.deviceId);return{p,name:d?d.name:('Unit '+p.deviceId)};});}
+function renderAorChip(){
+ let el=$('aor-chip');
+ if(!el){const host=$('mapw');if(!host)return;
+  el=document.createElement('button');el.id='aor-chip';el.type='button';el.className='mbox aorchip';
+  host.appendChild(el);
+  el.onclick=()=>{const o=aorOutliers();if(!o.length)return;
+   el.dataset.i=((+el.dataset.i||0)+1)%(o.length+1);
+   const i=+el.dataset.i;
+   if(i===0){fitFleet();return;}
+   const q=o[i-1].p;map.flyTo([q.latitude,q.longitude],8,{duration:.8});};}
+ const o=aorOutliers();
+ el.style.display=o.length?'':'none';
+ if(!o.length)return;
+ el.innerHTML=`<i></i>${o.length} outside service area<span>${o.length>1?'click to step through':'click to locate'}</span>`;
+ el.title='Not used to frame the map — check the device or its GPS:\n'+o.map(x=>'• '+x.name).join('\n');}
 function fitFleet(tries){
  if(!map||!Object.keys(S.pos).length)return;
  map.invalidateSize();
  if(map.getSize().x<80){
   if((tries||0)<10)requestAnimationFrame(()=>fitFleet((tries||0)+1));
   return;}
- map.fitBounds(L.latLngBounds(Object.values(S.pos).map(p=>[p.latitude,p.longitude])).pad(.3));}
+ const pts=Object.values(S.pos).filter(inAOR).map(p=>[p.latitude,p.longitude]);
+ if(!pts.length){map.fitBounds(AOR);return;}
+ map.fitBounds(L.latLngBounds(pts).pad(.3),{maxZoom:13});}
 
 function deselect(){
  pbStop();
@@ -6197,7 +6243,7 @@ function renderDash(){
      <div><div class="l">Trips today</div><div class="v">${trips.length}</div></div>
      <div><div class="l">People active</div><div class="v">${people.length}</div></div>
      <div><div class="l">Needs attention</div>
-      <div class="v" style="color:${attnCount?mc('offline'):'var(--tx3)'}">${attnCount}</div></div>
+      <div class="v" style="color:${attnCount?mcBad():'var(--tx3)'}">${attnCount}</div></div>
     </div>
 `;
  const arcs=$('dash-donut').querySelectorAll('.dnarc');
@@ -6222,14 +6268,14 @@ function renderDash(){
  const stTot=stage.pickup+stage.enroute+stage.delayed+stage.delivered+stage.cancelled;
  const stSegs=[['Delivered',stage.delivered,mc('idle')],['En-route',stage.enroute,mc('moving')],
    ['Pickup',stage.pickup,'var(--bl)'],['Delayed',stage.delayed,mc('stale')],
-   ['Cancelled',stage.cancelled,mc('offline')]];
+   ['Cancelled',stage.cancelled,mcBad()]];
  const open=stage.pickup+stage.enroute+stage.delayed;
  $('dash-stage').innerHTML=chCardTitle('Trip stage','TODAY')
   +chRows([{label:'Pickup',value:stage.pickup,color:'var(--bl)'},
     {label:'En-route',value:stage.enroute,color:mc('moving')},
     {label:'Delayed',value:stage.delayed,color:mc('stale')},
     {label:'Delivered',value:stage.delivered,color:mc('idle')},
-    {label:'Cancelled',value:stage.cancelled,color:mc('offline')}],'var(--cy)','No trips today')
+    {label:'Cancelled',value:stage.cancelled,color:mcBad()}],'var(--cy)','No trips today')
   /* the summary strip renders at zero too: an empty half-card reads as
      "something failed to load", where three honest zeros read as "nothing
      has started yet", which is what 01:30 actually means */
@@ -6309,7 +6355,7 @@ function renderDash(){
      <div><div class="l">Daily avg</div><div class="v">${wkAvg}</div></div>
      <div><div class="l">Peak</div><div class="v">${wkPeak}<span class="u">${wkPeak?' · '+wkPeakDay:''}</span></div></div>
      <div><div class="l">Today vs avg</div>
-      <div class="v" style="color:${vsAvg==null?'var(--tx3)':vsAvg>0?mc('idle'):vsAvg<0?mc('offline'):'var(--tx)'}">${
+      <div class="v" style="color:${vsAvg==null?'var(--tx3)':vsAvg>0?mc('idle'):vsAvg<0?mcBad():'var(--tx)'}">${
         vsAvg==null?'–':(vsAvg>0?'+':'')+vsAvg+'%'}</div></div>
     </div>`;
 
@@ -6609,7 +6655,7 @@ function renderOps(){
   const posOf=m=>m==null?null:Math.max(0,Math.min(100,(m-lo)/range*100));
   $('op-table').innerHTML=head+'<tbody>'+trips.map(t=>{
    const st=t.status||'in_transit',en=tripEnd(t),v=opVariance(t);
-   const col=st==='delivered'?mc('idle'):st==='cancelled'?mc('offline'):mc('moving');
+   const col=st==='delivered'?mc('idle'):st==='cancelled'?mcBad():mc('moving');
    const sp=spanMin(t)||{a:0,z:0,eta:null},dist=opDist(t);
    const a=posOf(sp.a),z=posOf(sp.z),etaP=posOf(sp.eta);
    const site=esc(t.destination.name||'');
