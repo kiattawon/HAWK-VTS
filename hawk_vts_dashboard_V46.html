@@ -2703,6 +2703,33 @@ kbd{font-family:'JetBrains Mono',monospace}
 .vtip .vt-s{color:var(--tx3);font-size:10.5px;margin:1px 0 5px 15px}
 .vtip .vt-r{display:flex;justify-content:space-between;gap:16px;color:var(--tx3)}
 .vtip .vt-r b{color:var(--tx);font-weight:500}
+
+/* V46.3 · KPI share bars, summary line, grouped operations feed, wall display, role tidy-up */
+.kp .of{font-size:11px;color:var(--tx3);align-self:flex-end;margin-bottom:2px}
+.kp .row canvas{margin-left:auto}
+.kshare{height:3px;border-radius:2px;background:var(--sf3);margin:9px 0 0 6px;overflow:hidden}
+.kshare span{display:block;height:100%;width:0;border-radius:2px;opacity:.85;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.sumline{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:2px 4px 0;font-size:12.5px;color:var(--tx2);flex:none}
+.sumline b{color:var(--tx);font-weight:600}
+.sumline i{width:3px;height:3px;border-radius:50%;background:var(--tx3);flex:none}
+.sumline .att{color:var(--am)}
+.sumline .att b{color:var(--am)}
+.fgh{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:9px 16px 7px;
+ background:var(--sf);border-bottom:1px solid var(--hr);font-size:11.5px;font-weight:600;color:var(--tx2)}
+.fgh i{width:7px;height:7px;border-radius:50%;flex:none}
+.fgh span{margin-left:auto;font-weight:500;color:var(--tx3)}
+.tripi .tr3{margin-top:5px}
+body[data-role="executive"] #b-sheet,body[data-role="executive"] #b-demo:not(.demo-on){display:none!important}
+body.wall header .hr-r>*:not(.wclk):not(.pill):not(#b-wall){display:none!important}
+body.wall footer,body.wall .nav button:not(.on),body.wall #frbar{display:none!important}
+body.wall #b-wall{color:var(--cy);border-color:var(--cy)}
+body.wall .kp .v{font-size:34px}
+body.wall .sumline{font-size:15px}
+#wallbadge{position:fixed;left:50%;top:11px;transform:translateX(-50%);z-index:4000;display:flex;align-items:center;gap:9px;
+ padding:8px 14px;border-radius:999px;background:var(--glass);border:1px solid var(--hr2);box-shadow:var(--shadow);
+ backdrop-filter:blur(12px);font:500 12px/1 var(--fu);color:var(--tx2);pointer-events:none}
+#wallbadge i{width:7px;height:7px;border-radius:50%;background:var(--gn)}
+#wallbadge span{color:var(--tx3)}
 </style>
 </head>
 <body>
@@ -2732,6 +2759,7 @@ kbd{font-family:'JetBrains Mono',monospace}
     <div class="pill" id="sys"><span class="d"></span><span class="l" id="sysl">STANDBY</span></div>
     <button class="uchip" id="b-user" aria-haspopup="true" title="Account, language and audit status"><span class="av" id="uc-av">?</span><span class="ux"><b id="uc-name">Not signed in</b><span id="uc-role">—</span></span><span class="aud" id="uc-aud"></span></button>
     <div class="ncwrap"><button class="ib" id="b-nc" title="Notifications (N)" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></button><span class="ncbadge" id="nc-badge">0</span></div>
+    <button class="ib" id="b-wall" title="Wall display — full screen, rotates Live → Command → Dashboard (W)" aria-label="Wall display"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
     <button class="ib" id="b-theme" title="Toggle theme" aria-label="Toggle light/dark theme">
       <svg id="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       <svg id="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
@@ -3526,7 +3554,7 @@ const KPI=[
  {k:'online', l:'Online',        s:'reporting now',    c:'var(--cy)'},
  {k:'moving', l:'Moving',        s:'speed > 5 km/h',   c:'var(--gn)'},
  {k:'stale',  l:'No update',     s:'gap > 30 min',     c:'var(--am)'},
- {k:'offline',l:'Offline',       s:'no signal',        c:'var(--tx3)'}
+ {k:'offline',l:'Offline',       s:'off shift or no signal', c:'var(--tx3)'}
 ];
 /* online/moving/stale/offline map onto the fleet-list filter; 'online' isn't
    one of the CHIPS values, it's a synthetic filter meaning "any status except
@@ -3535,7 +3563,8 @@ const KPI_FILT={online:'online',moving:'moving',stale:'stale',offline:'offline'}
 $('kps').innerHTML=KPI.map(m=>{const f=KPI_FILT[m.k];
  return `<div class="kp" style="--kc:${m.c}" ${f?`data-filt="${f}"`:''}>
  <div class="l">${m.l}</div>
- <div class="row"><span class="v num" id="kv-${m.k}">–</span><canvas id="ks-${m.k}" width="42" height="18" data-w="42" data-h="18"></canvas></div>
+ <div class="row"><span class="v num" id="kv-${m.k}">–</span><span class="of" id="ko-${m.k}"></span><canvas id="ks-${m.k}" width="84" height="26" data-w="84" data-h="26"></canvas></div>
+ <div class="kshare"><span id="kb-${m.k}"></span></div>
  <div class="ft"><span class="dlt z" id="kd-${m.k}">—</span><span>${m.s}</span></div></div>`;}).join('');
 document.querySelectorAll('.kp[data-filt]').forEach(el=>el.onclick=()=>setFilt(el.dataset.filt));
 function spark(id,arr,col){
@@ -3650,7 +3679,12 @@ function renderFeed(){
    No trip has been started today yet.<br>
    <span style="color:var(--tx3);font-size:10px">Rows appear here as drivers pick an origin and destination in the Driver App.</span></div>`;
   return;}
- $('feed').innerHTML=trips.map(t=>{
+ /* Grouped the way a dispatcher reads it — what needs a call, what is on the
+    road, what is done — with one status line per trip instead of "0% there"
+    and "no position yet" repeated down the column. */
+ const grpOf=t=>t.status==='delivered'?'arrived':t.status==='cancelled'?'cancelled':lateMin(t)?'overdue':'running';
+ const GRP=[['overdue','Needs follow-up','--am'],['running','On the road','--cy'],['arrived','Arrived','--gn'],['cancelled','Cancelled','--tx3']];
+ const row=t=>{
   const pr=tripProgress(t);
   const st=t.status||'in_transit';
   const col=st==='delivered'?mc('idle'):st==='cancelled'?mcBad():mc('moving');
@@ -3658,14 +3692,18 @@ function renderFeed(){
   const site=t.destination.name||'—';
   const from=(t.origin&&t.origin.name)||'—';
   const late=lateMin(t);
+  const line=st==='delivered'?(t.endTime?'Arrived '+clkS(t.endTime):'Arrived')
+   :st==='cancelled'?'Ended without delivery'
+   :pr?`${pct}% · ${pr.remainKm.toFixed(1)} km to go`:'Waiting for first GPS fix';
   return `<div class="tripi${late?' late':''}" data-id="${pr&&pr.dev?pr.dev.id:''}" title="${esc(t.driver)} · ${esc(from)} → ${esc(site)}">
    <div class="tr1"><span class="nm">${esc(t.driver||'—')}</span>
-    <span class="lf" style="color:${col}">${tripLeftTxt(t)}</span></div>
+    <span class="lf" style="color:${late?'var(--am)':col}">${tripLeftTxt(t)}</span></div>
    <div class="tr2">${esc(from)} <b>→</b> ${esc(site)}</div>
-   <div class="trbar"><span style="width:${pct}%;background:${col}"></span></div>
-   <div class="tr3"><span>${pr?pct+'% there':'no position yet'}</span>
-    <span>${pr&&st==='in_transit'?pr.remainKm.toFixed(1)+' km to go':''}</span></div>
-  </div>`;}).join('');
+   ${st==='in_transit'&&pr?`<div class="trbar"><span style="width:${pct}%;background:${late?'var(--am)':col}"></span></div>`:''}
+   <div class="tr3"><span>${line}</span></div>
+  </div>`;};
+ $('feed').innerHTML=GRP.map(([k,l,c])=>{const g=trips.filter(t=>grpOf(t)===k);if(!g.length)return'';
+  return `<div class="fgh"><i style="background:var(${c})"></i>${l}<span>${g.length}</span></div>`+g.map(row).join('');}).join('');
  $('feed').querySelectorAll('.tripi').forEach(el=>el.onclick=()=>{
   const id=+el.dataset.id;if(id)select(id);});}
 
@@ -3676,6 +3714,19 @@ function renderFeed(){
    fleet stops reporting, say so in words at the top and mark the card that
    caused it — the rest of the time this is invisible and costs nothing. */
 const SYS_OFFLINE_PCT=40;   /* share of the fleet dark before we call it out */
+function renderSummary(cnt){
+ let el=$('sumline');
+ if(!el){const k=$('kps');if(!k)return;el=document.createElement('div');el.id='sumline';el.className='sumline';k.parentNode.insertBefore(el,k);}
+ const now=Date.now();
+ const trips=opAllTrips().filter(t=>opDayKey(t.startTime)==='today'&&t.destination&&t.destination.name);
+ const open=trips.filter(t=>t.status!=='delivered'&&t.status!=='cancelled');
+ const late=open.filter(t=>t.eta&&new Date(t.eta)<now).length;
+ const done=trips.filter(t=>t.status==='delivered').length;
+ const total=cnt.total||0,on=cnt.online||0;
+ el.innerHTML=`<span><b>${on}</b> of ${total} units working</span><i></i>`
+  +`<span><b>${cnt.moving||0}</b> on the move</span><i></i>`
+  +`<span><b>${open.length}</b> trip${open.length===1?'':'s'} open · <b>${done}</b> delivered today</span>`
+  +(late?`<i></i><span class="att"><b>${late}</b> need${late===1?'s':''} follow-up</span>`:'');}
 function renderSysBar(cnt){
  const bar=$('sysbar'),tx=$('sysbar-tx');
  if(!bar||!tx)return;
@@ -3710,6 +3761,11 @@ function render(){
  /* the dashboard trail is a live view, so it follows the poll like the map */
  if(curView==='dash')safe('dash-trail',()=>dashTrail());
  safe('kpi-text',   ()=>KPI.forEach(m=>animNum($('kv-'+m.k),Number(cnt[m.k])||0,m.unit||'')));
+ safe('kpi-share',  ()=>KPI.forEach(m=>{const t=cnt.total||0,v=Number(cnt[m.k])||0;
+  const o=$('ko-'+m.k),b=$('kb-'+m.k);
+  if(o)o.textContent=t?'of '+t:'';
+  if(b){b.style.width=(t?Math.round(v/t*100):0)+'%';b.style.background=m.c;}}));
+ safe('summary',()=>renderSummary(cnt));
  safe('sysbar',()=>renderSysBar(cnt));
  if(Date.now()-S.lastSpark>4000){
   S.lastSpark=Date.now();
@@ -9215,6 +9271,44 @@ setLang(LANG.cur);
 H.policyLoad().then(()=>window.CONSENT43.load(true)).catch(()=>{}).then(()=>H.bootIdentity());
 })();
 
+</script>
+<script>
+/* ═══ WALL DISPLAY ═══
+   For a control-room screen or an executive briefing: full screen, header
+   controls tucked away, and the main views rotate on their own. Any click,
+   Esc or leaving full screen ends it. */
+(function(){
+ const ROT=['live','cmd','dash'],DWELL=40000;
+ let on=false,timer=null,tick=null,next=0,due=0;
+ function views(){return ROT.filter(v=>!window.canView||window.canView(v));}
+ function badge(){
+  let b=$('wallbadge');
+  if(!b){b=document.createElement('div');b.id='wallbadge';document.body.appendChild(b);}
+  const vs=views(),nx=vs[next%vs.length]||'live',left=Math.max(0,Math.round((due-Date.now())/1000));
+  const nm={live:'Live',cmd:'Command',dash:'Dashboard'}[nx];
+  b.innerHTML=`<i></i>Wall display · next: ${nm} in ${left}s<span>Esc to exit</span>`;}
+ function step(){const vs=views();if(!vs.length)return;
+  setView(vs[next%vs.length]);next=(next+1)%vs.length;due=Date.now()+DWELL;badge();}
+ function start(){
+  if(on)return;on=true;document.body.classList.add('wall');
+  try{const r=document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();if(r&&r.catch)r.catch(()=>{});}catch(e){}
+  const vs=views();next=Math.max(0,vs.indexOf(curView));step();
+  timer=setInterval(step,DWELL);tick=setInterval(badge,1000);
+  setTimeout(()=>{try{map.invalidateSize();}catch(e){}},400);}
+ function stop(){
+  if(!on)return;on=false;document.body.classList.remove('wall');
+  clearInterval(timer);clearInterval(tick);const b=$('wallbadge');if(b)b.remove();
+  try{if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});}catch(e){}
+  setTimeout(()=>{try{map.invalidateSize();}catch(e){}},400);}
+ $('b-wall').onclick=e=>{e.stopPropagation();on?stop():start();};
+ document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement)stop();});
+ window.addEventListener('keydown',e=>{
+  if(on&&e.key==='Escape'){stop();return;}
+  const tg=e.target;if(tg&&(/^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)||tg.isContentEditable))return;
+  if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.toLowerCase()==='w'&&!on)start();},true);
+ document.addEventListener('mousedown',e=>{if(on&&!e.target.closest('#b-wall'))stop();},true);
+ window.WALL={start,stop,isOn:()=>on};
+})();
 </script>
 </body>
 </html>
