@@ -2684,6 +2684,25 @@ kbd{font-family:'JetBrains Mono',monospace}
 .aorchip i{width:7px;height:7px;border-radius:50%;background:var(--am);flex:none}
 .aorchip span{color:var(--tx3);font-size:10.5px}
 .aorchip:hover{border-color:var(--am)}
+
+/* V46.2 · clusters, site pins, trip lines, hover cards */
+.vclus{background:none;border:0}
+.vclus>div{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;
+ background:color-mix(in srgb,var(--mc) 22%,var(--sf));border:2px solid var(--mc);
+ box-shadow:0 0 0 4px color-mix(in srgb,var(--mc) 14%,transparent),0 6px 16px rgba(0,0,0,.45);cursor:pointer;transition:transform .15s}
+.vclus>div:hover{transform:scale(1.08)}
+.vclus b{font:700 13px/1 var(--fu);color:var(--tx)}
+.sitepin{background:none;border:0}
+.sitepin i{display:block;width:12px;height:12px;margin:1px;border-radius:3px;transform:rotate(45deg);
+ background:var(--sf);border:2px solid var(--tx2);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.leaflet-tooltip.vtip{background:var(--glass);color:var(--tx);border:1px solid var(--hr2);border-radius:10px;
+ box-shadow:var(--shadow);backdrop-filter:blur(12px);padding:9px 11px;min-width:190px;font:400 11.5px/1.45 var(--fu);white-space:nowrap}
+.leaflet-tooltip.vtip::before{display:none}
+.vtip .vt-h{display:flex;align-items:center;gap:7px;font-size:12.5px}
+.vtip .vt-h i{width:8px;height:8px;border-radius:50%;flex:none}
+.vtip .vt-s{color:var(--tx3);font-size:10.5px;margin:1px 0 5px 15px}
+.vtip .vt-r{display:flex;justify-content:space-between;gap:16px;color:var(--tx3)}
+.vtip .vt-r b{color:var(--tx);font-weight:500}
 </style>
 </head>
 <body>
@@ -3461,19 +3480,36 @@ L.control.zoom({position:'topright'}).addTo(map);
 map.on('zoomstart',()=>$('map').classList.add('zooming'));
 map.on('zoomend',()=>$('map').classList.remove('zooming'));
 const BASES={
- dark:   ()=>L.layerGroup([L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,noWrap:true,attribution:'© OpenStreetMap contributors'})]),
- light:  ()=>L.layerGroup([L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,noWrap:true,attribution:'© OpenStreetMap contributors'})]),
+ dark:   ()=>cartoOr('dark_all'),
+ light:  ()=>cartoOr('light_all'),
  streets:()=>L.layerGroup([L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,noWrap:true,attribution:'© OpenStreetMap'})]),
  sat:    ()=>L.layerGroup([L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,noWrap:true,attribution:'© Esri'})])
 };
+/* CARTO's dark/light basemaps are the quiet, label-light style a control room
+   uses. If the network blocks them, the first failed tile swaps in plain OSM
+   (inverted for dark, as before) so the map is never blank. */
+let OSM_FALLBACK=false;
+function cartoOr(style){
+ const g=L.layerGroup();
+ const osm=()=>L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,noWrap:true,attribution:'© OpenStreetMap contributors'});
+ if(OSM_FALLBACK){g.addLayer(osm());g._osm=true;return g;}
+ const t=L.tileLayer('https://{s}.basemaps.cartocdn.com/'+style+'/{z}/{x}/{y}{r}.png',
+  {maxZoom:19,noWrap:true,subdomains:'abcd',attribution:'© OpenStreetMap contributors © CARTO'});
+ let bad=0;
+ t.on('tileerror',()=>{if(++bad<4||g._osm)return;
+  OSM_FALLBACK=true;g.removeLayer(t);g.addLayer(osm());g._osm=true;
+  if(g._map&&g._map===map)setTileFilter(MAPSTYLE,g);});
+ g.addLayer(t);return g;}
+function setTileFilter(k,layer){
+ const pane=map.getPane('tilePane');if(!pane)return;
+ pane.style.filter=(k==='dark'&&layer&&layer._osm)?'invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)':'none';}
 let MAPSTYLE='dark',baseLayer=null;
 function setMapStyle(k,silent){
  if(!BASES[k])return;
- MAPSTYLE=k;try{localStorage.setItem('hawk_map_v8',k)}catch(e){}
+ MAPSTYLE=k;try{localStorage.setItem('hawk_map_v9',k)}catch(e){}
  if(baseLayer)map.removeLayer(baseLayer);
  baseLayer=BASES[k]().addTo(map);
- const pane=map.getPane('tilePane');
- if(pane)pane.style.filter=(k==='dark')?'invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9)':'none';
+ setTileFilter(k,baseLayer);
  document.querySelectorAll('#mseg button').forEach(b=>b.classList.toggle('on',b.dataset.m===k));}
 document.querySelectorAll('#mseg button').forEach(b=>b.onclick=()=>setMapStyle(b.dataset.m));
 const MK={};
@@ -3871,9 +3907,83 @@ function renderMarkers(){
      ${st==='moving'?`<div class="arr" style="transform:rotate(${rot}deg)"></div>`:''}
      <div class="core"></div></div>`;
    MK[d.id].setIcon(L.divIcon({className:'vmarker veh-ic',iconSize:[30,30],iconAnchor:[15,15],html}));}
-  MK[d.id].unbindTooltip();
-  MK[d.id].bindTooltip(`${esc(d.name)} · ${Math.round(kmh(p))} km/h · ${st}`);});
- if(!S.fitted&&Object.keys(S.pos).length){fitFleet();S.fitted=true;}}
+  const tip=vehTip(d,p,st);
+  if(MK[d.id].getTooltip())MK[d.id].setTooltipContent(tip);
+  else MK[d.id].bindTooltip(tip,{className:'vtip',direction:'top',offset:[0,-14],opacity:1});});
+ if(!S.fitted&&Object.keys(S.pos).length){fitFleet();S.fitted=true;}
+ safe('trip-lines',drawTripLines);
+ safe('clusters',clusterPass);}
+
+/* ─── hover card: who, what, where to ─── */
+const ST_LABEL={moving:'Moving',idle:'Idle',stale:'No update',offline:'Offline'};
+function openTripOf(d){
+ const t=latestTripFor(d.uniqueId);
+ if(!t||/^(delivered|cancelled|not_tracked)$/.test(t.status||''))return null;
+ return t;}
+function vehTip(d,p,st){
+ const t=openTripOf(d),dst=t&&t.destination;
+ let to='';
+ if(dst&&!badSite(dst)){
+  const km=L.latLng(p.latitude,p.longitude).distanceTo([dst.lat,dst.lon])/1000;
+  to=`<div class="vt-r"><span>To</span><b>${esc(dst.name||dst.siteId||'site')}</b></div>
+      <div class="vt-r"><span>Remaining</span><b>≈ ${km<10?km.toFixed(1):Math.round(km)} km</b></div>`;}
+ return `<div class="vt-h"><i style="background:${mc(st)}"></i><b>${esc(nmMain(d.name))}</b></div>
+  ${nmSub(d.name)?`<div class="vt-s">${esc(nmSub(d.name))}</div>`:''}
+  <div class="vt-r"><span>Status</span><b>${ST_LABEL[st]||st} · ${Math.round(kmh(p))} km/h</b></div>
+  ${to}
+  <div class="vt-r"><span>Last fix</span><b>${d.lastUpdate?ago(d.lastUpdate):'never'}</b></div>`;}
+
+/* ─── 6 · where each open trip is heading: a quiet dashed line to a site pin ─── */
+let TL=null;
+function drawTripLines(){
+ if(TL){map.removeLayer(TL);TL=null;}
+ if(S.sel!=null||S.frActive)return;
+ const g=L.layerGroup(),sites={};
+ S.devices.forEach(d=>{
+  const p=S.pos[d.id];if(!inAOR(p))return;
+  const t=openTripOf(d),dst=t&&t.destination;
+  if(!dst||badSite(dst)||!AOR.contains([dst.lat,dst.lon]))return;
+  const st=statOf(d,p);
+  L.polyline([[p.latitude,p.longitude],[dst.lat,dst.lon]],{renderer:SVGR,color:mc(st),weight:1.6,opacity:.55,
+   dashArray:'3 6',interactive:false,className:'tripline'}).addTo(g);
+  const k=dst.lat.toFixed(4)+','+dst.lon.toFixed(4);
+  (sites[k]=sites[k]||{la:dst.lat,lo:dst.lon,n:dst.name||dst.siteId||'Site',c:0}).c++;});
+ Object.values(sites).forEach(x=>{
+  L.marker([x.la,x.lo],{zIndexOffset:-200,interactive:true,icon:L.divIcon({className:'sitepin',iconSize:[14,14],iconAnchor:[7,7],
+   html:'<i></i>'})}).bindTooltip(`<div class="vt-h"><b>${esc(x.n)}</b></div><div class="vt-r"><span>Heading here</span><b>${x.c} unit${x.c>1?'s':''}</b></div>`,
+   {className:'vtip',direction:'top',offset:[0,-8],opacity:1}).addTo(g);});
+ TL=g.addTo(map);}
+
+/* ─── 5 · clusters: units closer than ~40 px on screen merge into one counted badge ─── */
+let CL=null;
+const CL_MAXZOOM=11;
+function clusterPass(){
+ if(CL){map.removeLayer(CL);CL=null;}
+ const ids=Object.keys(MK);
+ const showAll=()=>ids.forEach(id=>{if(!map.hasLayer(MK[id]))MK[id].addTo(map);});
+ if(S.frActive||S.sel!=null||map.getZoom()>=CL_MAXZOOM){showAll();return;}
+ const pts=ids.map(id=>{const m=MK[id];return{id,m,pt:map.latLngToLayerPoint(m.getLatLng())};});
+ const used={},groups=[];
+ pts.forEach(a=>{if(used[a.id])return;used[a.id]=1;const g=[a];
+  pts.forEach(b=>{if(!used[b.id]&&a.pt.distanceTo(b.pt)<40){used[b.id]=1;g.push(b);}});groups.push(g);});
+ const lay=L.layerGroup();
+ const rank={moving:3,stale:2,idle:1,offline:0};
+ groups.forEach(g=>{
+  if(g.length===1){if(!map.hasLayer(g[0].m))g[0].m.addTo(map);return;}
+  g.forEach(x=>{if(map.hasLayer(x.m))map.removeLayer(x.m);});
+  let la=0,lo=0,top='offline';const cnt={moving:0,idle:0,stale:0,offline:0};
+  g.forEach(x=>{const ll=x.m.getLatLng();la+=ll.lat;lo+=ll.lng;
+   const d=S.devices.find(v=>String(v.id)===x.id);const st=d?statOf(d,S.pos[d.id]):'offline';
+   cnt[st]++;if(rank[st]>rank[top])top=st;});
+  const n=g.length,sz=n<10?34:n<50?40:46;
+  L.marker([la/n,lo/n],{zIndexOffset:400,icon:L.divIcon({className:'vclus',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],
+   html:`<div style="--mc:${mc(top)}"><b>${n}</b></div>`})})
+   .bindTooltip(Object.entries(cnt).filter(e=>e[1]).map(([k,v])=>`<div class="vt-r"><span>${ST_LABEL[k]}</span><b>${v}</b></div>`).join(''),
+     {className:'vtip',direction:'top',offset:[0,-sz/2],opacity:1})
+   .on('click',()=>map.fitBounds(L.latLngBounds(g.map(x=>x.m.getLatLng())).pad(.4),{maxZoom:Math.min(16,map.getZoom()+4)}))
+   .addTo(lay);});
+ CL=lay.addTo(map);}
+map.on('zoomend',()=>safe('clusters',clusterPass));
 
 /* ═══ SELECT / ROUTE ═══ */
 function select(id){
@@ -7567,8 +7677,8 @@ $('introClose').onclick=closeIntro;
 /* boot */
 (function(){
  let th='dark',mp='sat';
- try{th=localStorage.getItem(THK)||'dark';mp=localStorage.getItem('hawk_map_v8')||'sat';}catch(e){}
- setMapStyle(BASES[mp]?mp:'sat',true);
+ try{th=localStorage.getItem(THK)||'dark';mp=localStorage.getItem('hawk_map_v9')||'dark';}catch(e){}
+ setMapStyle(BASES[mp]?mp:'dark',true);
  setTheme(th==='light'?'light':'dark',true);
  setSys('');
  S.date=isoDate(new Date());
